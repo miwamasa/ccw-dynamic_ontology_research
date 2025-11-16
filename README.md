@@ -151,15 +151,41 @@ const tree = encoder.encode(graph, 'canonical-root', 'n1');
 
 ## 実験シナリオ
 
-### シナリオ1: 製造データからGHGレポート生成
+### シナリオ1: 製造データからGHGレポート生成 ✅ 実装完了
 
 サンプルデータ (`samples/data/*.csv`) を使用して、製造活動データをGHG排出レポートに変換します。
 
-**手順:**
+**実行方法:**
+```bash
+# ビルド
+npm run build
+
+# テスト実行
+npm test
+
+# シナリオを直接実行
+npm run scenario1
+```
+
+**処理フロー:**
 1. CSVデータをLPGとして読み込み
-2. transformation_rules.yamlに基づいてDSL操作を生成
-3. DSL→MTTコンパイルして実行
-4. 結果を検証
+2. エネルギー消費データに排出係数を適用
+3. 施設・期間別にGHGレポートを生成
+4. Scope 1/2の分類と合計計算
+
+**実行結果例:**
+```
+Facility: F001 | Period: 2024-01
+  Scope 1 (Direct): 6090 kg-CO2
+  Scope 2 (Indirect): 42500 kg-CO2
+  Total: 48590 kg-CO2
+```
+
+**成果:**
+- 5施設 × 2ヶ月 = 10レポート生成
+- 排出係数の正確な適用
+- Scope分類の自動判定
+- JSON形式での出力対応
 
 ### シナリオ2: 差分テスト (DSL→Cypher vs DSL→MTT)
 
@@ -174,7 +200,11 @@ const tree = encoder.encode(graph, 'canonical-root', 'n1');
 - [x] MTTランタイムエンジン
 - [x] グラフ→木エンコーダ/デコーダ
 - [x] DSL→MTTコンパイラ
-- [x] テストスイート
+- [x] CSV読み込みユーティリティ
+- [x] CSV→LPG変換
+- [x] GHG計算ロジック
+- [x] シナリオ1完全実装
+- [x] テストスイート (全て成功)
 - [ ] DSL→Cypherコンパイラ (今後の実装)
 
 ### 理論的成果
