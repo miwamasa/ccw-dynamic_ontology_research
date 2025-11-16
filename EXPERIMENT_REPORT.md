@@ -226,6 +226,141 @@ Facility: F001 | Period: 2024-01
 **考察:**
 実際のビジネスシナリオ（製造業のGHG排出量計算）において、エンドツーエンドの変換が正しく動作することを確認。CSV → LPG → Tree → Report という変換チェーンが機能している。
 
+### Experiment 5: DSL → MTT 変換検証
+
+**目的:** GHG変換をDSLで記述し、それをMTTにコンパイルして実行した結果が、直接計算と一致することを検証する
+
+**入力データ:**
+- `samples/data/energy.csv` の最初の2行（テスト用）
+- DSL定義: `examples/ghg-transformation.dsl.yaml`
+
+**DSL定義の内容:**
+```yaml
+metadata:
+  name: "Energy to GHG Emission Transformation"
+  version: "1.0"
+  description: "Transform energy consumption data to GHG emissions"
+
+transformations:
+  - name: "energy_to_emission"
+    input_type: "EnergyConsumption"
+    output_type: "Emission"
+    operations:
+      - operation: "calculate"
+        field: "co2_amount"
+        formula: "multiply"
+      - operation: "determine_scope"
+        field: "scope"
+
+emission_factors:
+  electricity:
+    factor: 0.5
+    unit: "kg-CO2/kWh"
+    scope: 2
+  natural_gas:
+    factor: 2.03
+    unit: "kg-CO2/m³"
+    scope: 1
+```
+
+**処理フロー:**
+1. DSL定義の読み込み
+2. DSL → MTT コンパイル（3つのMTTルールを生成）
+3. 直接変換の実行（ベースライン）
+4. MTT変換の実行
+5. 結果の比較
+
+**実行結果:**
+```
+=== Experiment 5: DSL → MTT Verification ===
+
+Step 1: Loading DSL definition...
+DSL loaded successfully
+
+Step 2: Compiling DSL to MTT...
+Generated 3 MTT rules
+
+Step 3: Loading test data...
+Loaded 2 energy consumption records
+
+Step 4: Executing direct transformation (baseline)...
+Generated 4 emissions (direct)
+
+Step 5: Executing MTT transformation...
+Generated 4 emissions (MTT)
+
+Step 6: Comparing results...
+=== Comparison Results ===
+
+Total emissions: 4
+Matches: 4
+Mismatches: 0
+Accuracy: 100.00%
+
+✅ All results match!
+```
+
+**検証結果の詳細:**
+
+エネルギー消費データ2行から、電力と天然ガスの排出量をそれぞれ計算:
+- 2行 × 2種類（electricity + natural_gas）= 4排出レコード
+
+すべての排出レコードで以下が一致:
+- ✅ co2_amount（CO2排出量）
+- ✅ scope（排出スコープ）
+- ✅ facility_id（施設ID）
+- ✅ energy_type（エネルギー種別）
+
+**F001施設の検証例:**
+```
+入力: 85000 kWh (electricity)
+直接計算: 85000 × 0.5 = 42500 kg-CO2, Scope 2
+MTT計算: 85000 × 0.5 = 42500 kg-CO2, Scope 2
+結果: ✅ 完全一致
+```
+
+**生成されたMTTルール:**
+1. `q0` → `q_energy`: EnergyConsumptionノードの初期処理
+2. `q_energy` → electricity emission: 電力消費からScope 2排出量計算
+3. `q_energy` → natural_gas emission: ガス消費からScope 1排出量計算
+
+**テストカバレッジ:**
+- [x] DSL定義の読み込み
+- [x] DSL → MTT コンパイル
+- [x] 直接変換の実行
+- [x] MTT変換の実行
+- [x] 結果の完全一致（100% accuracy）
+- [x] 排出係数の正確性
+- [x] 施設別計算の検証
+
+**結果:** ✅ 完全成功（100% accuracy）
+
+**考察:**
+
+この実験により、以下が実証された:
+
+1. **DSL → MTT コンパイルの実現可能性**:
+   - GHG変換ルールをYAML形式のDSLで記述可能
+   - DSLをMTTルールに機械的に変換可能
+   - 生成されたMTTプログラムが実行可能
+
+2. **意味的等価性の検証**:
+   - 直接計算とMTT変換が完全に一致（100% accuracy）
+   - 排出量、スコープ、すべての属性が一致
+   - 4つの異なる排出レコードで検証
+
+3. **実用性の確認**:
+   - 実データ（energy.csv）で検証
+   - 複数のエネルギー種別（electricity, natural_gas）を処理
+   - 異なる排出係数とスコープを正しく適用
+
+4. **研究の意義**:
+   - Dynamic Ontology DSL と MTT の等価性を実装レベルで実証
+   - 同一の変換を異なる表現形式（DSL vs MTT）で記述可能
+   - 変換の正しさを自動検証可能
+
+この結果は、instructions.mdで示された研究目標「DSLとMTTの意味的等価性の実証」の重要なマイルストーンとなる。
+
 ## 未完成の部分
 
 ### 1. DSL → Cypherコンパイラ
@@ -371,11 +506,17 @@ Dynamic OntologyとMTTの両方のアプローチでデータ変換を表現で�
 ### ビジネスロジック
 - ✅ `src/transformations/ghg-calculator.ts` - GHG計算
 - ✅ `src/transformations/ghg-mtt-rules.ts` - GHG MTTルール
+- ✅ `src/mtt/ghg-dsl-to-mtt.ts` - GHG DSL→MTTコンパイラ
 
 ### シナリオとテスト
 - ✅ `src/scenarios/scenario1-ghg-report.ts` - シナリオ1実装
+- ✅ `src/scenarios/experiment5-dsl-to-mtt.ts` - Experiment 5実装
 - ✅ `src/tests/mtt-runtime.test.ts` - MTTランタイムテスト
 - ✅ `src/tests/scenario1.test.ts` - シナリオ1統合テスト
+- ✅ `src/tests/experiment5.test.ts` - Experiment 5統合テスト
+
+### DSL定義
+- ✅ `examples/ghg-transformation.dsl.yaml` - GHG変換DSL定義
 
 ## 使用方法
 
@@ -390,6 +531,16 @@ npm test
 
 # シナリオ1を直接実行
 npm run scenario1
+```
+
+### Experiment 5の実行
+
+```bash
+# Experiment 5を直接実行
+npm run experiment5
+
+# またはテストを実行
+npm test -- experiment5.test.ts
 ```
 
 ### 期待される出力
