@@ -1,0 +1,110 @@
+# GHG Transformation DSL
+# Energy consumption data to GHG emission report transformation
+
+metadata:
+  name: "Energy to GHG Emission Transformation"
+  version: "1.0"
+  description: "Transform energy consumption data to GHG emission reports"
+
+# Define transformation rules
+transformations:
+  # Step 1: Transform energy consumption to emission
+  - name: "energy_to_emission"
+    input_type: "EnergyConsumption"
+    output_type: "Emission"
+    operations:
+      - operation: "calculate"
+        field: "co2_amount"
+        formula: "multiply"
+        inputs:
+          - source: "amount"
+          - lookup:
+              table: "emission_factors"
+              key_field: "energy_type"
+              value_field: "factor"
+
+      - operation: "determine_scope"
+        field: "scope"
+        logic:
+          - if:
+              condition: "energy_type in ['natural_gas', 'fuel_oil', 'diesel', 'gasoline', 'lpg', 'coal']"
+              then: 1
+          - if:
+              condition: "energy_type in ['electricity']"
+              then: 2
+          - else: 1
+
+      - operation: "copy"
+        mappings:
+          - source: "facility_id"
+            target: "facility_id"
+          - source: "energy_type"
+            target: "energy_type"
+          - source: "year"
+            target: "year"
+          - source: "month"
+            target: "month"
+
+  # Step 2: Aggregate emissions by facility and period
+  - name: "aggregate_emissions"
+    input_type: "Emission"
+    output_type: "GHGReport"
+    group_by:
+      - "facility_id"
+      - "year"
+      - "month"
+    aggregations:
+      - field: "co2_amount"
+        function: "sum"
+        filter:
+          field: "scope"
+          value: 1
+        target: "total_scope1"
+
+      - field: "co2_amount"
+        function: "sum"
+        filter:
+          field: "scope"
+          value: 2
+        target: "total_scope2"
+
+      - field: "co2_amount"
+        function: "sum"
+        target: "total_emissions"
+
+# Emission factors lookup table
+emission_factors:
+  electricity:
+    factor: 0.5
+    unit: "kg-CO2/kWh"
+    scope: 2
+
+  natural_gas:
+    factor: 2.03
+    unit: "kg-CO2/m³"
+    scope: 1
+
+  fuel_oil:
+    factor: 2.68
+    unit: "kg-CO2/liter"
+    scope: 1
+
+  diesel:
+    factor: 2.68
+    unit: "kg-CO2/liter"
+    scope: 1
+
+  gasoline:
+    factor: 2.31
+    unit: "kg-CO2/liter"
+    scope: 1
+
+  lpg:
+    factor: 1.51
+    unit: "kg-CO2/kg"
+    scope: 1
+
+  coal:
+    factor: 2.42
+    unit: "kg-CO2/kg"
+    scope: 1

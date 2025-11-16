@@ -7,7 +7,9 @@
     "build": "tsc",
     "test": "jest",
     "dev": "ts-node src/index.ts",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "scenario1": "ts-node src/scenarios/scenario1-ghg-report.ts",
+    "experiment5": "ts-node src/scenarios/experiment5-dsl-to-mtt.ts"
   },
   "keywords": [
     "ontology",
